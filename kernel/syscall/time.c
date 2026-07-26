@@ -1,10 +1,12 @@
 #include "time.h"
 #include "arch/x86_64/cpu.h"
 #include "arch/x86_64/pit.h"
+#include "drivers/timer.h"
 #include "fs/vfs.h"
 #include "lib/string.h"
 #include "proc/proc.h"
 #include "syscall/syscall.h"
+#include "../time.h"
 
 #define EFAULT 14
 #define EINVAL 22
@@ -77,7 +79,11 @@ int64_t sys_clock_nanosleep(int clockid, int flags, const void *req, void *rem) 
 
     uint64_t ms;
     if (flags & 1) { /* TIMER_ABSTIME: req is an absolute time, sleep until then */
-        uint64_t now_ms = g_epoch_base * 1000 + g_ticks;
+        uint64_t now_ms;
+        if (clockid == 1 || clockid == 4 || clockid == 6 || clockid == 7)
+            now_ms = g_ticks;
+        else
+            now_ms = g_epoch_base * 1000 + g_ticks;
         ms = target_ms > now_ms ? target_ms - now_ms : 0;
     } else {
         ms = target_ms;
@@ -135,23 +141,29 @@ int64_t sys_setitimer(int w, const void *n, void *o) {
 }
 
 int64_t sys_clock_gettime(uint64_t c, void *t) {
-    (void) c;
+    struct timespec ts;
+
     if (t) {
         if (!uptr_ok_w(t, 16)) return -(int64_t) EFAULT;
-        uint64_t ms = g_epoch_base * 1000 + g_ticks;
-        ((uint64_t *) t)[0] = ms / 1000;
-        ((uint64_t *) t)[1] = (ms % 1000) * 1000000ULL;
+        if (c == 1 || c == 4 || c == 6 || c == 7)
+            nanouptime(&ts);
+        else
+            nanotime(&ts);
+        ((uint64_t *) t)[0] = ts.tv_sec;
+        ((uint64_t *) t)[1] = (uint64_t) ts.tv_nsec;
     }
     return 0;
 }
 
 int64_t sys_gettimeofday(void *tv, void *tz) {
+    struct timeval ktv;
+
     (void) tz;
     if (tv) {
         if (!uptr_ok_w(tv, 16)) return -(int64_t) EFAULT;
-        uint64_t ms = g_epoch_base * 1000 + g_ticks;
-        ((uint64_t *) tv)[0] = ms / 1000;
-        ((uint64_t *) tv)[1] = (ms % 1000) * 1000ULL;
+        microtime(&ktv);
+        ((uint64_t *) tv)[0] = ktv.tv_sec;
+        ((uint64_t *) tv)[1] = (uint64_t) ktv.tv_usec;
     }
     return 0;
 }
@@ -175,11 +187,15 @@ int64_t sys_alarm(uint32_t seconds) {
 }
 
 int64_t sys_clock_getres(uint64_t clk, void *res) {
+    uint64_t nsec;
+
     (void) clk;
     if (res) {
         if (!uptr_ok_w(res, 16)) return -(int64_t) EFAULT;
+        nsec = timer_get_frequency() ?
+            1000000000ULL / timer_get_frequency() : 1000000ULL;
         ((uint64_t *) res)[0] = 0;
-        ((uint64_t *) res)[1] = 1000000ULL;
+        ((uint64_t *) res)[1] = nsec;
     }
     return 0;
 }
@@ -188,7 +204,7 @@ int64_t sys_sysinfo(struct sysinfo_s *si) {
     if (!si) return -(int64_t) EFAULT;
     if (!uptr_ok_w(si, sizeof(*si))) return -(int64_t) EFAULT;
     memset(si, 0, sizeof(*si));
-    si->uptime = (int64_t) (g_ticks / 1000);
+    si->uptime = (int64_t) time_uptime;
     si->totalram = 256ULL * 1024 * 1024;
     si->freeram = 128ULL * 1024 * 1024;
     si->mem_unit = 1;

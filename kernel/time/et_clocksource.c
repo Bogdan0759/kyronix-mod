@@ -28,32 +28,45 @@
 /* !DEFINES!
 
 $define %type uint64_t as 64 bit unsigned
+$define %type struct timecounter as FreeBSD-style hardware time source
 
-$define %func pit_init as procedure with args void
-
-$define %const PIT_FREQUENCY as 1193182
-$define %const PIT_CHANNEL0 as 0x40
-$define %const PIT_CMD as 0x43
-$define %const PIT_MAX_DIVISOR as 65535
+$define %func et_tc_get_timecount as function with args struct timecounter *
+$define %func et_clocksource_init as procedure with args void
 
 */
 
 /* !SPACE!
 
-$space %export pit_init, g_ticks, g_epoch_base
-$space %export PIT_FREQUENCY, PIT_CHANNEL0, PIT_CMD, PIT_MAX_DIVISOR
+$space %internal et_tc_get_timecount
+$space %export et_clocksource_init
 
 */
 
-#pragma once
+#include "drivers/timer.h"
+#include "time.h"
+#include "time/clocksource.h"
 
-#include <stdint.h>
+static uint64_t
+et_tc_get_timecount(struct timecounter *tc)
+{
+	(void)tc;
+	return (timer_get_ticks());
+}
 
-#define PIT_CHANNEL0 0x40
-#define PIT_CMD 0x43
-#define PIT_FREQUENCY 1193182ULL
-#define PIT_MAX_DIVISOR 65535
+static struct timecounter	et_timecounter = {
+	.tc_next		= NULL,
+	.tc_counter_mask	= ~0ULL,
+	.tc_frequency		= 0,
+	.tc_get_timecount	= et_tc_get_timecount,
+	.tc_quality		= 100,
+	.tc_name		= "et_timer_ticks",
+	.tc_priv		= NULL,
+};
 
-extern volatile uint64_t g_ticks;
-extern uint64_t g_epoch_base;
-void pit_init(void);
+void
+et_clocksource_init(void)
+{
+	et_timecounter.tc_frequency = timer_get_frequency();
+	tc_register(&et_timecounter);
+	time_windup_current();
+}

@@ -28,20 +28,23 @@
 /* !DEFINES!
 
 $define %type uint64_t as 64 bit unsigned
+$define %type uint32_t as 32 bit unsigned
+$define %type int as 32 bit signed
 
-$define %func pit_init as procedure with args void
-
-$define %const PIT_FREQUENCY as 1193182
-$define %const PIT_CHANNEL0 as 0x40
-$define %const PIT_CMD as 0x43
-$define %const PIT_MAX_DIVISOR as 65535
+$define %func timer_init as procedure with args uint32_t
+$define %func timer_reinit as procedure with args uint32_t
+$define %func timer_get_ticks as function with args void
+$define %func timer_is_initialized as function with args void
+$define %func timer_get_frequency as function with args void
+$define %func timer_calibrate as function with args struct timer_calibrate *, uint32_t, uint32_t
 
 */
 
 /* !SPACE!
 
-$space %export pit_init, g_ticks, g_epoch_base
-$space %export PIT_FREQUENCY, PIT_CHANNEL0, PIT_CMD, PIT_MAX_DIVISOR
+$space %export timer_init, timer_reinit, timer_get_ticks
+$space %export timer_is_initialized, timer_get_frequency, timer_calibrate
+$space %export g_ticks
 
 */
 
@@ -49,11 +52,17 @@ $space %export PIT_FREQUENCY, PIT_CHANNEL0, PIT_CMD, PIT_MAX_DIVISOR
 
 #include <stdint.h>
 
-#define PIT_CHANNEL0 0x40
-#define PIT_CMD 0x43
-#define PIT_FREQUENCY 1193182ULL
-#define PIT_MAX_DIVISOR 65535
+struct timer_calibrate {
+	uint64_t	(*read_count)(void *arg);
+	void	*arg;
+};
 
-extern volatile uint64_t g_ticks;
-extern uint64_t g_epoch_base;
-void pit_init(void);
+extern volatile uint64_t	g_ticks;
+
+void		timer_init(uint32_t frequency);
+void		timer_reinit(uint32_t frequency);
+uint64_t	timer_get_ticks(void);
+int		timer_is_initialized(void);
+uint32_t	timer_get_frequency(void);
+uint64_t	timer_calibrate(struct timer_calibrate *calib,
+		    uint32_t ticks, uint32_t divider);

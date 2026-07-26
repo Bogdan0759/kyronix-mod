@@ -2,6 +2,7 @@
 #include "arch/x86_64/lapic.h"
 #include "arch/x86_64/syscall_setup.h"
 #include "drivers/fb.h"
+#include "drivers/eventtimer.h"
 #include "exec/process.h"
 #include "fs/vfs.h"
 #include "gdt.h"
@@ -254,7 +255,7 @@ void isr_dispatch(cpu_state_t *state) {
     } else if (n < 48) {
         uint8_t irq = (uint8_t) (n - 32);
         if (irq == 0) {
-            g_ticks++;
+            eventtimer_dispatch();
             fb_cursor_blink_tick(g_ticks);
             proc_reap_pending();
             net_poll();

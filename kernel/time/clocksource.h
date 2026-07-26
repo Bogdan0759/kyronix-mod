@@ -28,32 +28,38 @@
 /* !DEFINES!
 
 $define %type uint64_t as 64 bit unsigned
+$define %type int as 32 bit signed
+$define %type struct timecounter as FreeBSD-style hardware time source
 
-$define %func pit_init as procedure with args void
-
-$define %const PIT_FREQUENCY as 1193182
-$define %const PIT_CHANNEL0 as 0x40
-$define %const PIT_CMD as 0x43
-$define %const PIT_MAX_DIVISOR as 65535
+$define %func tc_register as procedure with args struct timecounter *
+$define %func tc_deregister as procedure with args struct timecounter *
+$define %func tc_get_current as function with args void
+$define %func tc_best as function with args void
 
 */
 
 /* !SPACE!
 
-$space %export pit_init, g_ticks, g_epoch_base
-$space %export PIT_FREQUENCY, PIT_CHANNEL0, PIT_CMD, PIT_MAX_DIVISOR
+$space %export tc_register, tc_deregister, tc_get_current, tc_best
 
 */
 
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
-#define PIT_CHANNEL0 0x40
-#define PIT_CMD 0x43
-#define PIT_FREQUENCY 1193182ULL
-#define PIT_MAX_DIVISOR 65535
+struct timecounter {
+	struct timecounter	*tc_next;
+	uint64_t		tc_counter_mask;
+	uint64_t		tc_frequency;
+	uint64_t		(*tc_get_timecount)(struct timecounter *tc);
+	int			tc_quality;
+	const char		*tc_name;
+	void			*tc_priv;
+};
 
-extern volatile uint64_t g_ticks;
-extern uint64_t g_epoch_base;
-void pit_init(void);
+void		tc_register(struct timecounter *tc);
+void		tc_deregister(struct timecounter *tc);
+struct timecounter *tc_best(void);
+struct timecounter *tc_get_current(void);

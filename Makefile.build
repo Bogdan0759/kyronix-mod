@@ -99,6 +99,11 @@ SRCS := \
     kernel/syscall/mount.c            \
     kernel/exec/elf.c                  \
     kernel/exec/process.c              \
+    kernel/drivers/eventtimer.c        \
+    kernel/drivers/timer.c             \
+    kernel/time/clocksource.c          \
+    kernel/time/et_clocksource.c       \
+    kernel/time.c                      \
     kernel/proc/proc.c                 \
     kernel/proc/jail.c                 \
     kernel/proc/signal.c               \

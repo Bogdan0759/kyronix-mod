@@ -11,6 +11,7 @@
 #include "boot/limine.h"
 #include "drivers/fb.h"
 #include "proc/smp.h"
+#include "time.h"
 #include "version.h"
 
 #include "crypto/chacha20.h"
@@ -24,6 +25,7 @@
 #include "drivers/pci.h"
 #include "drivers/ps2mouse.h"
 #include "drivers/serial.h"
+#include "drivers/timer.h"
 #include "drivers/tty.h"
 #include "drivers/uio.h"
 #include "drivers/virtio_net.h"
@@ -374,7 +376,10 @@ void kmain(void) {
     vt_init();
     kstatus("Initialising virtual tty", true);
     pit_init();
-    kstatus("Starting PIT timer", true);
+    timer_init(1000);
+    time_init();
+    et_clocksource_init();
+    kstatus("Starting PIT timer", timer_is_initialized());
     lapic_calibrate_timer();
 
     {
